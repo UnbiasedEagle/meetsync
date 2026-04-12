@@ -2,13 +2,14 @@ package com.meetsync.controller
 
 import com.meetsync.dto.CreateRoomRequest
 import com.meetsync.dto.RoomResponse
+import com.meetsync.repository.UserRepository
 import com.meetsync.service.RoomService
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
-import com.meetsync.repository.UserRepository
-import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.server.ResponseStatusException
 
 @RestController
 @RequestMapping("/api/rooms")
@@ -22,8 +23,7 @@ class RoomController(
         @RequestBody request: CreateRoomRequest,
         @AuthenticationPrincipal userDetails: UserDetails
     ): ResponseEntity<RoomResponse> {
-        val user = userRepository.findByEmail(userDetails.username)
-            ?: return ResponseEntity.notFound().build()
+        val user = resolveUser(userDetails)
         val room = roomService.createRoom(request, user.id!!)
         return ResponseEntity.status(201).body(room)
     }
@@ -32,8 +32,7 @@ class RoomController(
     fun getMyRooms(
         @AuthenticationPrincipal userDetails: UserDetails
     ): ResponseEntity<List<RoomResponse>> {
-        val user = userRepository.findByEmail(userDetails.username)
-            ?: return ResponseEntity.notFound().build()
+        val user = resolveUser(userDetails)
         return ResponseEntity.ok(roomService.getHostRooms(user.id!!))
     }
 
@@ -43,4 +42,7 @@ class RoomController(
         return ResponseEntity.ok(room)
     }
 
+    private fun resolveUser(userDetails: UserDetails) =
+        userRepository.findByEmail(userDetails.username)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
 }

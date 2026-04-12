@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { BACKEND_URL } from "../config";
 
 export type CreateRoomState = { success: true } | { error: string } | null;
 
@@ -22,17 +23,14 @@ export async function createRoomAction(
     return { error: "Unauthorized" };
   }
 
-  const res = await fetch(
-    `${process.env.BACKEND_URL || "http://localhost:8080"}/api/rooms`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ name }),
+  const res = await fetch(`${BACKEND_URL}/api/rooms`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
-  );
+    body: JSON.stringify({ name }),
+  });
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
@@ -42,4 +40,3 @@ export async function createRoomAction(
   revalidatePath("/dashboard");
   return { success: true };
 }
-

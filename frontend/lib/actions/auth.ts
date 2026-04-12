@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { BACKEND_URL } from "@/lib/config";
 
 export type AuthActionResult = { success: true } | { error: string };
 
@@ -19,14 +20,11 @@ export async function loginAction(
   email: string,
   password: string,
 ): Promise<AuthActionResult> {
-  const res = await fetch(
-    `${process.env.BACKEND_URL || "http://localhost:8080"}/api/auth/login`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    },
-  );
+  const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
@@ -43,14 +41,11 @@ export async function registerAction(
   email: string,
   password: string,
 ): Promise<AuthActionResult> {
-  const res = await fetch(
-    `${process.env.BACKEND_URL || "http://localhost:8080"}/api/auth/register`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
-    },
-  );
+  const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, email, password }),
+  });
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));

@@ -16,21 +16,21 @@ class JwtUtil {
     @Value("\${jwt.expiration}")
     private lateinit var expiration: String
 
+    private val signingKey by lazy { Keys.hmacShaKeyFor(secret.toByteArray()) }
+
     fun generateToken(userId: UUID, email: String): String {
-        val key = Keys.hmacShaKeyFor(secret.toByteArray())
         return Jwts.builder()
             .subject(email)
             .claim("userId", userId.toString())
             .issuedAt(Date())
             .expiration(Date(System.currentTimeMillis() + expiration.toLong()))
-            .signWith(key)
+            .signWith(signingKey)
             .compact()
     }
 
     fun extractEmail(token: String): String {
-        val key = Keys.hmacShaKeyFor(secret.toByteArray())
         return Jwts.parser()
-            .verifyWith(key)
+            .verifyWith(signingKey)
             .build()
             .parseSignedClaims(token)
             .payload
@@ -39,8 +39,7 @@ class JwtUtil {
 
     fun isTokenValid(token: String): Boolean {
         return try {
-            val key = Keys.hmacShaKeyFor(secret.toByteArray())
-            Jwts.parser().verifyWith(key).build().parseSignedClaims(token)
+            Jwts.parser().verifyWith(signingKey).build().parseSignedClaims(token)
             true
         } catch (e: Exception) {
             false
