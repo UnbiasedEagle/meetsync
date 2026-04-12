@@ -1,7 +1,11 @@
 import Header from "@/components/layout/Header";
 import CreateRoomDialog from "@/components/rooms/CreateRoomDialog";
+import RoomList from "@/components/rooms/RoomList";
+import { getMyRooms } from "@/lib/data/rooms";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const rooms = await getMyRooms();
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -15,6 +19,7 @@ export default function DashboardPage() {
           </div>
           <CreateRoomDialog />
         </div>
+        <RoomList rooms={rooms} />
       </main>
     </div>
   );

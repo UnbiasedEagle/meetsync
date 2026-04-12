@@ -32,7 +32,7 @@ export default function RegisterForm() {
 
   async function onSubmit(values: RegisterFormValues) {
     const result = await registerAction(values.name, values.email, values.password);
-    if (result.error) {
+    if ("error" in result) {
       setError("root", { message: result.error });
     } else {
       router.push("/dashboard");

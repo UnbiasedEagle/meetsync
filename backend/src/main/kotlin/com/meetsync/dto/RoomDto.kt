@@ -7,6 +7,7 @@ data class CreateRoomRequest(
     val name: String
 )
 
+
 data class RoomResponse(
     val id: UUID?,
     val name: String,

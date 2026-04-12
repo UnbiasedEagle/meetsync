@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 
-export type AuthActionResult = { error?: string };
+export type AuthActionResult = { success: true } | { error: string };
 
 async function setAuthCookie(token: string) {
   const cookieStore = await cookies();
@@ -35,7 +35,7 @@ export async function loginAction(
 
   const data = await res.json();
   await setAuthCookie(data.token);
-  return {};
+  return { success: true as const };
 }
 
 export async function registerAction(
@@ -59,5 +59,5 @@ export async function registerAction(
 
   const data = await res.json();
   await setAuthCookie(data.token);
-  return {};
+  return { success: true as const };
 }

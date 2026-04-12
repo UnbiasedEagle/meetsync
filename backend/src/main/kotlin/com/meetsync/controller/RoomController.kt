@@ -42,4 +42,5 @@ class RoomController(
         val room = roomService.getRoomByInviteToken(inviteToken)
         return ResponseEntity.ok(room)
     }
+
 }

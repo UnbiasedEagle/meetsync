@@ -31,7 +31,7 @@ export default function LoginForm() {
 
   async function onSubmit(values: LoginFormValues) {
     const result = await loginAction(values.email, values.password);
-    if (result.error) {
+    if ("error" in result) {
       setError("root", { message: result.error });
     } else {
       router.push("/dashboard");
