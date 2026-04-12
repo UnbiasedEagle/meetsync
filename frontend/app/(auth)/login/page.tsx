@@ -5,10 +5,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import LoginForm from "./LoginForm";
 
 export default function LoginPage() {
   return (
@@ -22,25 +19,8 @@ export default function LoginPage() {
           <CardTitle>Welcome back</CardTitle>
           <CardDescription>Sign in to your MeetSync account</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="you@example.com" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" placeholder="••••••••" />
-          </div>
-          <Button className="w-full">Sign in</Button>
-          <p className="text-sm text-center text-muted-foreground">
-            Don't have an account?{" "}
-            <Link
-              href="/register"
-              className="text-primary underline-offset-4 hover:underline"
-            >
-              Register
-            </Link>
-          </p>
+        <CardContent>
+          <LoginForm />
         </CardContent>
       </Card>
     </div>
