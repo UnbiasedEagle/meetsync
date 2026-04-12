@@ -7,11 +7,15 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { registerUser } from "@/lib/api/auth";
 
 export default function RegisterForm() {
+  const router = useRouter();
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -19,7 +23,14 @@ export default function RegisterForm() {
   });
 
   async function onSubmit(values: RegisterFormValues) {
-    console.log(values);
+    try {
+      await registerUser(values.name, values.email, values.password);
+      router.push("/dashboard");
+    } catch (error) {
+      setError("root", {
+        message: error instanceof Error ? error.message : "Registration failed",
+      });
+    }
   }
 
   return (
@@ -54,6 +65,9 @@ export default function RegisterForm() {
         />
         <FieldError errors={[errors.password]} />
       </Field>
+      {errors.root && (
+        <p className="text-sm text-destructive">{errors.root.message}</p>
+      )}
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? "Creating account..." : "Create account"}
       </Button>
