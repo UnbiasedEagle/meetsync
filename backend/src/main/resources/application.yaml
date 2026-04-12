@@ -1,3 +1,25 @@
 spring:
   application:
-    name: backend
+    name: meetsync-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/meetsync
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:44587bf43812bac57e17fbd85f3cd7f366ce222c2573b46889bba29e361600ec}
+  expiration: ${JWT_EXPIRATION:86400000}
