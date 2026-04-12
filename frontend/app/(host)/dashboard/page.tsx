@@ -1,5 +1,5 @@
 import Header from "@/components/layout/Header";
-import { Button } from "@/components/ui/button";
+import CreateRoomDialog from "@/components/rooms/CreateRoomDialog";
 
 export default function DashboardPage() {
   return (
@@ -13,7 +13,7 @@ export default function DashboardPage() {
               Manage and create your meetings
             </p>
           </div>
-          <Button>Create Room</Button>
+          <CreateRoomDialog />
         </div>
       </main>
     </div>
