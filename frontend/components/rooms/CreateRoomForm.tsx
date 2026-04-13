@@ -1,26 +1,25 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createRoomAction, CreateRoomState } from "@/lib/actions/rooms";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-interface CreateRoomFormProps {
-  onSuccess: () => void;
-}
-
-export default function CreateRoomForm({ onSuccess }: CreateRoomFormProps) {
+export default function CreateRoomForm() {
   const [state, action, isPending] = useActionState<CreateRoomState, FormData>(
     createRoomAction,
     null,
   );
 
+  const router = useRouter();
+
   useEffect(() => {
     if (state && "success" in state) {
-      onSuccess();
+      router.push(`/room/${state.inviteToken}`);
     }
-  }, [state, onSuccess]);
+  }, [state, router]);
 
   return (
     <form action={action} className="flex flex-col gap-4">

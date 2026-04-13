@@ -29,7 +29,8 @@ class SecurityConfig(
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
-                it.requestMatchers("/api/auth/**").permitAll()
+                it.requestMatchers("/api/auth/**", "/ws/**").permitAll()
+                it.requestMatchers(org.springframework.http.HttpMethod.GET, "/api/rooms/*").permitAll()
                 it.anyRequest().authenticated()
             }
             .authenticationProvider(authenticationProvider())

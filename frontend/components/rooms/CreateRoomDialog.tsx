@@ -28,7 +28,7 @@ export default function CreateRoomDialog() {
             creating it.
           </DialogDescription>
         </DialogHeader>
-        <CreateRoomForm onSuccess={() => setOpen(false)} />
+        <CreateRoomForm />
       </DialogContent>
     </Dialog>
   );

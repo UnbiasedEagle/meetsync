@@ -1,5 +1,5 @@
 import { Video } from "lucide-react";
-import { Room } from "@/lib/data/rooms";
+import { Room } from "@/types/room";
 import RoomCard from "./RoomCard";
 
 interface RoomListProps {

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Video, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Room } from "@/lib/data/rooms";
+import { Room } from "@/types/room";
 
 interface RoomCardProps {
   room: Room;

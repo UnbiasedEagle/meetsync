@@ -4,7 +4,12 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { BACKEND_URL } from "../config";
 
-export type CreateRoomState = { success: true } | { error: string } | null;
+export type CreateRoomState =
+  | { success: true; inviteToken: string }
+  | { error: string }
+  | null;
+
+export type InviteActionResult = { success: true } | { error: string };
 
 export async function createRoomAction(
   _prevState: CreateRoomState,
@@ -37,6 +42,34 @@ export async function createRoomAction(
     return { error: error.message || "Failed to create room" };
   }
 
+  const room = await res.json();
   revalidatePath("/dashboard");
-  return { success: true };
+  return { success: true, inviteToken: room.inviteToken };
+}
+
+export async function inviteToRoomAction(
+  inviteToken: string,
+  email: string,
+): Promise<InviteActionResult> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+
+    if (!token) return { error: "Unauthorized" };
+
+    const res = await fetch(`${BACKEND_URL}/api/rooms/${inviteToken}/invite`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!res.ok) return { error: "Failed to send invite" };
+
+    return { success: true };
+  } catch {
+    return { error: "Failed to send invite" };
+  }
 }

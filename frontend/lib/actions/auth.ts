@@ -56,3 +56,14 @@ export async function registerAction(
   await setAuthCookie(data.token);
   return { success: true as const };
 }
+
+export async function getCurrentUserId(): Promise<string> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+  if (!token) return crypto.randomUUID();
+  // decode JWT payload to get userId
+  const payload = JSON.parse(
+    Buffer.from(token.split(".")[1], "base64").toString(),
+  );
+  return payload.userId ?? crypto.randomUUID();
+}
