@@ -7,6 +7,10 @@ data class CreateRoomRequest(
     val name: String
 )
 
+data class UpdateRoomRequest(
+    val name: String
+)
+
 data class InviteRequest(
     val email: String
 )

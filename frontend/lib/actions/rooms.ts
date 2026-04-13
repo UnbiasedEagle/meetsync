@@ -47,6 +47,53 @@ export async function createRoomAction(
   return { success: true, inviteToken: room.inviteToken };
 }
 
+export async function updateRoomAction(
+  inviteToken: string,
+  name: string,
+): Promise<{ success: true } | { error: string }> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+    if (!token) return { error: "Unauthorized" };
+
+    const res = await fetch(`${BACKEND_URL}/api/rooms/${inviteToken}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name }),
+    });
+
+    if (!res.ok) return { error: "Failed to update room" };
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch {
+    return { error: "Failed to update room" };
+  }
+}
+
+export async function deleteRoomAction(
+  inviteToken: string,
+): Promise<{ success: true } | { error: string }> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+    if (!token) return { error: "Unauthorized" };
+
+    const res = await fetch(`${BACKEND_URL}/api/rooms/${inviteToken}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) return { error: "Failed to delete room" };
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch {
+    return { error: "Failed to delete room" };
+  }
+}
+
 export async function inviteToRoomAction(
   inviteToken: string,
   email: string,

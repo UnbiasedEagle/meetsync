@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+import { PUBLIC_BACKEND_URL } from "@/lib/config";
 
 interface Peer {
   peerId: string;
@@ -9,23 +10,25 @@ interface Peer {
   videoEnabled: boolean;
 }
 
-export function useWebRTC(roomId: string) {
+export function useWebRTC(roomId: string, isHost: boolean) {
   const sessionId = useRef(crypto.randomUUID()).current;
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [peers, setPeers] = useState<Peer[]>([]);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
+  // Host is always "present" from their own perspective; guests start as false
+  const [hostPresent, setHostPresent] = useState(isHost);
 
   const stompClient = useRef<Client | null>(null);
   const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
   const pendingCandidates = useRef<Record<string, RTCIceCandidateInit[]>>({});
-
-  const ICE_SERVERS = {
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-  };
+  const iceServers = useRef<RTCIceServer[]>([
+    { urls: "stun:stun.l.google.com:19302" },
+  ]);
+  const hostSessionId = useRef<string | null>(null);
 
   function createPeerConnection(peerId: string): RTCPeerConnection {
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+    const pc = new RTCPeerConnection({ iceServers: iceServers.current });
 
     pc.onicecandidate = (event) => {
       if (event.candidate && stompClient.current?.connected) {
@@ -58,6 +61,18 @@ export function useWebRTC(roomId: string) {
       });
     };
 
+    pc.oniceconnectionstatechange = () => {
+      if (
+        pc.iceConnectionState === "disconnected" ||
+        pc.iceConnectionState === "failed" ||
+        pc.iceConnectionState === "closed"
+      ) {
+        setPeers((prev) => prev.filter((p) => p.peerId !== peerId));
+        pc.close();
+        delete peerConnections.current[peerId];
+      }
+    };
+
     peerConnections.current[peerId] = pc;
     return pc;
   }
@@ -65,6 +80,20 @@ export function useWebRTC(roomId: string) {
   useEffect(() => {
     let isActive = true;
     let stream: MediaStream;
+
+    function handleBeforeUnload() {
+      stompClient.current?.publish({
+        destination: "/app/signal",
+        body: JSON.stringify({
+          type: "leave",
+          from: sessionId,
+          roomId,
+          payload: "",
+        }),
+      });
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     async function flushPendingCandidates(
       peerId: string,
@@ -78,6 +107,15 @@ export function useWebRTC(roomId: string) {
     }
 
     async function init() {
+      try {
+        const res = await fetch(
+          "https://meetsync.metered.live/api/v1/turn/credentials?apiKey=2f321774b5fe7521469acfb279c18640d874",
+        );
+        iceServers.current = await res.json();
+      } catch {
+        // fall back to STUN-only if fetch fails
+      }
+
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
@@ -95,7 +133,7 @@ export function useWebRTC(roomId: string) {
       setLocalStream(stream);
 
       const client = new Client({
-        webSocketFactory: () => new SockJS("http://localhost:8080/ws"),
+        webSocketFactory: () => new SockJS(`${PUBLIC_BACKEND_URL}/ws`),
         onConnect: () => {
           client.subscribe(`/topic/room/${roomId}`, async (message) => {
             const signal = JSON.parse(message.body);
@@ -104,6 +142,18 @@ export function useWebRTC(roomId: string) {
 
             if (signal.type === "join") {
               if (peerConnections.current[signal.from]) return;
+              // Re-announce host presence to any guest who joins after the host
+              if (isHost) {
+                client.publish({
+                  destination: "/app/signal",
+                  body: JSON.stringify({
+                    type: "host-online",
+                    from: sessionId,
+                    roomId,
+                    payload: "",
+                  }),
+                });
+              }
               const pc = createPeerConnection(signal.from);
               stream.getTracks().forEach((track) => pc.addTrack(track, stream));
               const offer = await pc.createOffer();
@@ -171,6 +221,11 @@ export function useWebRTC(roomId: string) {
               );
             }
 
+            if (signal.type === "host-online") {
+              hostSessionId.current = signal.from;
+              setHostPresent(true);
+            }
+
             if (signal.type === "leave") {
               setPeers((prev) => prev.filter((p) => p.peerId !== signal.from));
               const pc = peerConnections.current[signal.from];
@@ -178,9 +233,17 @@ export function useWebRTC(roomId: string) {
                 pc.close();
                 delete peerConnections.current[signal.from];
               }
+              // If the host left (tab close / explicit leave), redirect guests
+              if (signal.from === hostSessionId.current) {
+                setHostPresent(false);
+              }
             }
 
             if (signal.type === "kick" && signal.to === sessionId) {
+              window.location.href = "/dashboard";
+            }
+
+            if (signal.type === "end-meeting") {
               window.location.href = "/dashboard";
             }
 
@@ -202,6 +265,19 @@ export function useWebRTC(roomId: string) {
               payload: "",
             }),
           });
+
+          // Host announces presence so guests know the meeting has started
+          if (isHost) {
+            client.publish({
+              destination: "/app/signal",
+              body: JSON.stringify({
+                type: "host-online",
+                from: sessionId,
+                roomId,
+                payload: "",
+              }),
+            });
+          }
         },
       });
 
@@ -215,6 +291,7 @@ export function useWebRTC(roomId: string) {
 
     return () => {
       isActive = false;
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       stream?.getTracks().forEach((t) => t.stop());
       Object.values(peerConnections.current).forEach((pc) => pc.close());
       peerConnections.current = {};
@@ -288,6 +365,22 @@ export function useWebRTC(roomId: string) {
     );
   }
 
+  function endMeeting() {
+    stompClient.current?.publish({
+      destination: "/app/signal",
+      body: JSON.stringify({
+        type: "end-meeting",
+        from: sessionId,
+        roomId,
+        payload: "",
+      }),
+    });
+    localStream?.getTracks().forEach((t) => t.stop());
+    Object.values(peerConnections.current).forEach((pc) => pc.close());
+    stompClient.current?.deactivate();
+    window.location.href = "/dashboard";
+  }
+
   function kickPeer(peerId: string) {
     stompClient.current?.publish({
       destination: "/app/signal",
@@ -312,9 +405,11 @@ export function useWebRTC(roomId: string) {
     peers,
     audioEnabled,
     videoEnabled,
+    hostPresent,
     toggleAudio,
     toggleVideo,
     leaveRoom,
+    endMeeting,
     mutePeer,
     kickPeer,
   };

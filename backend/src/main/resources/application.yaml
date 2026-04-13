@@ -32,6 +32,9 @@ spring:
 server:
   port: 8080
 
+app:
+  frontend-url: ${FRONTEND_URL:https://tapestry-dividable-degraded.ngrok-free.dev}
+
 jwt:
   secret: ${JWT_SECRET:44587bf43812bac57e17fbd85f3cd7f366ce222c2573b46889bba29e361600ec}
   expiration: ${JWT_EXPIRATION:86400000}

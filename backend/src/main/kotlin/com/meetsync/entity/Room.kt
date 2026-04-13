@@ -12,7 +12,7 @@ class Room(
     val id: UUID? = null,
 
     @Column(nullable = false)
-    val name: String,
+    var name: String,
 
     @Column(nullable = false)
     val hostId: UUID,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Mic,
   MicOff,
@@ -8,6 +9,7 @@ import {
   PhoneOff,
   UserX,
   MicOff as MuteIcon,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWebRTC } from "@/hooks/useWebRTC";
@@ -21,19 +23,66 @@ interface RoomViewProps {
 }
 
 export default function RoomView({ room, userId }: RoomViewProps) {
+  const isHost = room.hostId === userId;
+
   const {
     localStream,
     peers,
     audioEnabled,
     videoEnabled,
+    hostPresent,
     toggleAudio,
     toggleVideo,
     leaveRoom,
+    endMeeting,
     mutePeer,
     kickPeer,
-  } = useWebRTC(room.inviteToken);
+  } = useWebRTC(room.inviteToken, isHost);
 
-  const isHost = room.hostId === userId;
+  // After 30 s with no host, switch the waiting message
+  const [longWait, setLongWait] = useState(false);
+
+  useEffect(() => {
+    if (isHost || hostPresent) return;
+    const t = setTimeout(() => setLongWait(true), 30_000);
+    return () => clearTimeout(t);
+  }, [isHost, hostPresent]);
+
+  useEffect(() => {
+    if (!isHost) return;
+    function handleBeforeUnload() {
+      endMeeting();
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isHost]);
+
+  // Guest waiting screen — shown until host broadcasts host-online
+  if (!isHost && !hostPresent) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-6 px-4">
+        <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center">
+          <Clock className="w-7 h-7 text-zinc-400" />
+        </div>
+        <div className="text-center">
+          <h2 className="text-white text-xl font-semibold mb-2">
+            {longWait ? "Host hasn't joined yet" : "Waiting for host to join…"}
+          </h2>
+          <p className="text-zinc-400 text-sm max-w-xs">
+            {longWait
+              ? "The host doesn't seem to be available right now. You can keep waiting or leave."
+              : `You'll be connected to "${room.name}" as soon as the host starts the meeting.`}
+          </p>
+        </div>
+        <Button
+          className="bg-red-500 hover:bg-red-600 text-white px-6"
+          onClick={leaveRoom}
+        >
+          Leave room
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
@@ -130,8 +179,8 @@ export default function RoomView({ room, userId }: RoomViewProps) {
           variant="ghost"
           size="icon"
           className="rounded-full w-12 h-12 bg-red-500 hover:bg-red-600 text-white"
-          onClick={leaveRoom}
-          title="Leave room"
+          onClick={isHost ? endMeeting : leaveRoom}
+          title={isHost ? "End meeting" : "Leave room"}
         >
           <PhoneOff className="w-5 h-5" />
         </Button>
