@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Mic,
   MicOff,
@@ -10,7 +10,10 @@ import {
   UserX,
   MicOff as MuteIcon,
   Clock,
+  AlertCircle,
+  CameraOff,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import VideoTitle from "./VideoTitle";
@@ -31,34 +34,68 @@ export default function RoomView({ room, userId }: RoomViewProps) {
     audioEnabled,
     videoEnabled,
     hostPresent,
+    hostEverPresent,
+    permissionDenied,
     toggleAudio,
     toggleVideo,
     leaveRoom,
-    endMeeting,
     mutePeer,
     kickPeer,
   } = useWebRTC(room.inviteToken, isHost);
 
-  // After 30 s with no host, switch the waiting message
+  // After 30 s with no host on the initial lobby, update the message
   const [longWait, setLongWait] = useState(false);
 
+  // Toast when participants join or leave (skip the initial mount)
+  const prevPeerCount = useRef<number | null>(null);
   useEffect(() => {
-    if (isHost || hostPresent) return;
+    if (prevPeerCount.current === null) {
+      prevPeerCount.current = peers.length;
+      return;
+    }
+    if (peers.length > prevPeerCount.current) {
+      toast("A participant has joined the meeting.");
+    } else if (peers.length < prevPeerCount.current) {
+      toast("A participant has left the meeting.");
+    }
+    prevPeerCount.current = peers.length;
+  }, [peers.length]);
+
+  useEffect(() => {
+    // Only run the timer when waiting on the initial lobby (host never joined)
+    if (isHost || hostEverPresent) return;
     const t = setTimeout(() => setLongWait(true), 30_000);
     return () => clearTimeout(t);
-  }, [isHost, hostPresent]);
+  }, [isHost, hostEverPresent]);
 
-  useEffect(() => {
-    if (!isHost) return;
-    function handleBeforeUnload() {
-      endMeeting();
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isHost]);
+  if (permissionDenied) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-6 px-4">
+        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
+          <CameraOff className="w-7 h-7 text-red-400" />
+        </div>
+        <div className="text-center">
+          <h2 className="text-white text-xl font-semibold mb-2">
+            Camera &amp; microphone access required
+          </h2>
+          <p className="text-zinc-400 text-sm max-w-sm">
+            MeetSync needs access to your camera and microphone to join the
+            meeting. Please allow access in your browser settings and reload the
+            page.
+          </p>
+        </div>
+        <Button
+          className="bg-red-500 hover:bg-red-600 text-white px-6"
+          onClick={() => window.location.reload()}
+        >
+          Reload page
+        </Button>
+      </div>
+    );
+  }
 
-  // Guest waiting screen — shown until host broadcasts host-online
-  if (!isHost && !hostPresent) {
+  // Guest lobby — shown only before the host has ever joined
+  if (!isHost && !hostEverPresent) {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-6 px-4">
         <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center">
@@ -95,9 +132,18 @@ export default function RoomView({ room, userId }: RoomViewProps) {
         </span>
       </div>
 
+      {/* Host-left notice — shown to guests after the host disconnects mid-meeting */}
+      {!isHost && !hostPresent && (
+        <div className="mx-4 mt-4 flex items-center gap-2.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 px-4 py-3">
+          <AlertCircle className="w-4 h-4 text-yellow-400 shrink-0" />
+          <p className="text-sm text-yellow-300">
+            The host has left the meeting. You can stay or leave.
+          </p>
+        </div>
+      )}
+
       {/* Video grid */}
       <div className="flex-1 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 content-start">
-        {/* Local video */}
         {localStream && (
           <VideoTitle
             stream={localStream}
@@ -108,7 +154,6 @@ export default function RoomView({ room, userId }: RoomViewProps) {
           />
         )}
 
-        {/* Remote videos */}
         {peers.map((peer) => (
           <div key={peer.peerId} className="relative">
             <VideoTitle
@@ -124,11 +169,7 @@ export default function RoomView({ room, userId }: RoomViewProps) {
                   variant="ghost"
                   className="h-7 w-7 bg-black/50 hover:bg-black/70 text-white"
                   onClick={() => mutePeer(peer.peerId, !peer.audioEnabled)}
-                  title={
-                    peer.audioEnabled
-                      ? "Mute participant"
-                      : "Unmute participant"
-                  }
+                  title={peer.audioEnabled ? "Mute participant" : "Unmute participant"}
                 >
                   <MuteIcon className="w-3.5 h-3.5" />
                 </Button>
@@ -156,11 +197,7 @@ export default function RoomView({ room, userId }: RoomViewProps) {
           onClick={toggleAudio}
           title={audioEnabled ? "Mute" : "Unmute"}
         >
-          {audioEnabled ? (
-            <Mic className="w-5 h-5" />
-          ) : (
-            <MicOff className="w-5 h-5" />
-          )}
+          {audioEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
         </Button>
         <Button
           variant="ghost"
@@ -169,18 +206,14 @@ export default function RoomView({ room, userId }: RoomViewProps) {
           onClick={toggleVideo}
           title={videoEnabled ? "Turn off camera" : "Turn on camera"}
         >
-          {videoEnabled ? (
-            <Video className="w-5 h-5" />
-          ) : (
-            <VideoOff className="w-5 h-5" />
-          )}
+          {videoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
         </Button>
         <Button
           variant="ghost"
           size="icon"
           className="rounded-full w-12 h-12 bg-red-500 hover:bg-red-600 text-white"
-          onClick={isHost ? endMeeting : leaveRoom}
-          title={isHost ? "End meeting" : "Leave room"}
+          onClick={leaveRoom}
+          title="Leave room"
         >
           <PhoneOff className="w-5 h-5" />
         </Button>
