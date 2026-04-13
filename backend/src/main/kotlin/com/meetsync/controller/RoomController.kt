@@ -74,7 +74,8 @@ class RoomController(
         @RequestBody request: InviteRequest,
         @AuthenticationPrincipal userDetails: UserDetails
     ): ResponseEntity<Void> {
-        val room = roomService.getRoomByInviteToken(inviteToken)
+        val user = resolveUser(userDetails)
+        val room = roomService.assertInvitePermission(inviteToken, user.id!!)
         val joinUrl = "$frontendUrl/room/${room.inviteToken}"
         emailService.sendInvite(request.email, room.name, joinUrl)
         return ResponseEntity.ok().build()

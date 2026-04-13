@@ -8,7 +8,6 @@ import {
   VideoOff,
   PhoneOff,
   UserX,
-  MicOff as MuteIcon,
   Clock,
   AlertCircle,
   CameraOff,
@@ -171,7 +170,7 @@ export default function RoomView({ room, userId }: RoomViewProps) {
                   onClick={() => mutePeer(peer.peerId, !peer.audioEnabled)}
                   title={peer.audioEnabled ? "Mute participant" : "Unmute participant"}
                 >
-                  <MuteIcon className="w-3.5 h-3.5" />
+                  <MicOff className="w-3.5 h-3.5" />
                 </Button>
                 <Button
                   size="icon"

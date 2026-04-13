@@ -23,31 +23,42 @@ class RoomService(
         return toResponse(savedRoom)
     }
 
-    fun getRoomByInviteToken(inviteToken: String): RoomResponse {
-        val room = roomRepository.findByInviteToken(inviteToken)
-            ?: throw IllegalArgumentException("Room not found")
-        return toResponse(room)
-    }
+    fun getRoomByInviteToken(inviteToken: String): RoomResponse =
+        toResponse(findRoomOrThrow(inviteToken))
 
-    fun getHostRooms(hostId: UUID): List<RoomResponse> {
-        return roomRepository.findAllByHostId(hostId).map { toResponse(it) }
-    }
+    fun getHostRooms(hostId: UUID): List<RoomResponse> =
+        roomRepository.findAllByHostId(hostId).map { toResponse(it) }
 
     fun updateRoom(inviteToken: String, newName: String, requestingUserId: UUID): RoomResponse {
-        val room = roomRepository.findByInviteToken(inviteToken)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found")
-        if (room.hostId != requestingUserId)
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Only the host can update this room")
+        val room = findRoomOrThrow(inviteToken)
+        assertHost(room, requestingUserId)
         room.name = newName
         return toResponse(roomRepository.save(room))
     }
 
     fun deleteRoom(inviteToken: String, requestingUserId: UUID) {
-        val room = roomRepository.findByInviteToken(inviteToken)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found")
-        if (room.hostId != requestingUserId)
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Only the host can delete this room")
+        val room = findRoomOrThrow(inviteToken)
+        assertHost(room, requestingUserId)
         roomRepository.delete(room)
+    }
+
+    /**
+     * Returns the room so the caller can build the invite URL.
+     * Throws 403 if the requester is not the room host.
+     */
+    fun assertInvitePermission(inviteToken: String, requestingUserId: UUID): RoomResponse {
+        val room = findRoomOrThrow(inviteToken)
+        assertHost(room, requestingUserId)
+        return toResponse(room)
+    }
+
+    private fun findRoomOrThrow(inviteToken: String): Room =
+        roomRepository.findByInviteToken(inviteToken)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found")
+
+    private fun assertHost(room: Room, userId: UUID) {
+        if (room.hostId != userId)
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Only the host can perform this action")
     }
 
     private fun toResponse(room: Room) = RoomResponse(

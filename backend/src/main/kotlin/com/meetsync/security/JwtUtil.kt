@@ -14,7 +14,7 @@ class JwtUtil {
     private lateinit var secret: String
 
     @Value("\${jwt.expiration}")
-    private lateinit var expiration: String
+    private var expiration: Long = 86400000
 
     private val signingKey by lazy { Keys.hmacShaKeyFor(secret.toByteArray()) }
 
@@ -23,7 +23,7 @@ class JwtUtil {
             .subject(email)
             .claim("userId", userId.toString())
             .issuedAt(Date())
-            .expiration(Date(System.currentTimeMillis() + expiration.toLong()))
+            .expiration(Date(System.currentTimeMillis() + expiration))
             .signWith(signingKey)
             .compact()
     }

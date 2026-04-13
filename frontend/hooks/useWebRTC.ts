@@ -58,6 +58,14 @@ export function useWebRTC(roomId: string, isHost: boolean) {
   // One RTCPeerConnection per remote peer, keyed by their sessionId
   const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
 
+  // Publishes a signal message to the STOMP broker
+  function publishSignal(signal: Record<string, string>) {
+    stompClient.current?.publish({
+      destination: "/app/signal",
+      body: JSON.stringify(signal),
+    });
+  }
+
   /**
    * ICE candidates can arrive before setRemoteDescription() completes.
    * Adding a candidate without a remote description throws an error, so we
@@ -147,15 +155,7 @@ export function useWebRTC(roomId: string, isHost: boolean) {
 
     // Notify the room when the tab is closed so peers can clean up immediately
     function handleBeforeUnload() {
-      stompClient.current?.publish({
-        destination: "/app/signal",
-        body: JSON.stringify({
-          type: "leave",
-          from: sessionId,
-          roomId,
-          payload: "",
-        }),
-      });
+      publishSignal({ type: "leave", from: sessionId, roomId, payload: "" });
     }
 
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -185,8 +185,9 @@ export function useWebRTC(roomId: string, isHost: boolean) {
        * Falls back to STUN-only if the fetch fails.
        */
       try {
+        const apiKey = process.env.NEXT_PUBLIC_METERED_API_KEY;
         const res = await fetch(
-          "https://meetsync.metered.live/api/v1/turn/credentials?apiKey=2f321774b5fe7521469acfb279c18640d874",
+          `https://meetsync.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`,
         );
         iceServers.current = await res.json();
       } catch {
@@ -215,6 +216,13 @@ export function useWebRTC(roomId: string, isHost: boolean) {
       const client = new Client({
         webSocketFactory: () => new SockJS(`${PUBLIC_BACKEND_URL}/ws`),
         onConnect: () => {
+          // Shorthand for publishing a signal through this client instance.
+          // Used here instead of publishSignal() because stompClient.current
+          // may not be assigned yet when onConnect first fires.
+          function send(signal: Record<string, string>) {
+            client.publish({ destination: "/app/signal", body: JSON.stringify(signal) });
+          }
+
           // Subscribe to the room's broadcast topic to receive all signals
           client.subscribe(`/topic/room/${roomId}`, async (message) => {
             const signal = JSON.parse(message.body);
@@ -227,31 +235,14 @@ export function useWebRTC(roomId: string, isHost: boolean) {
               // Re-announce host presence so guests who join after the host
               // still receive host-online and can exit the lobby screen
               if (isHost) {
-                client.publish({
-                  destination: "/app/signal",
-                  body: JSON.stringify({
-                    type: "host-online",
-                    from: sessionId,
-                    roomId,
-                    payload: "",
-                  }),
-                });
+                send({ type: "host-online", from: sessionId, roomId, payload: "" });
               }
               // We are already in the room — initiate the connection to the newcomer
               const pc = createPeerConnection(signal.from);
               stream.getTracks().forEach((track) => pc.addTrack(track, stream));
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
-              client.publish({
-                destination: "/app/signal",
-                body: JSON.stringify({
-                  type: "offer",
-                  from: sessionId,
-                  to: signal.from,
-                  roomId,
-                  payload: JSON.stringify(offer),
-                }),
-              });
+              send({ type: "offer", from: sessionId, to: signal.from, roomId, payload: JSON.stringify(offer) });
             }
 
             if (signal.type === "offer" && signal.to === sessionId) {
@@ -265,16 +256,7 @@ export function useWebRTC(roomId: string, isHost: boolean) {
               await flushPendingCandidates(signal.from, pc);
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
-              client.publish({
-                destination: "/app/signal",
-                body: JSON.stringify({
-                  type: "answer",
-                  from: sessionId,
-                  to: signal.from,
-                  roomId,
-                  payload: JSON.stringify(answer),
-                }),
-              });
+              send({ type: "answer", from: sessionId, to: signal.from, roomId, payload: JSON.stringify(answer) });
             }
 
             if (signal.type === "answer" && signal.to === sessionId) {
@@ -304,9 +286,7 @@ export function useWebRTC(roomId: string, isHost: boolean) {
               const { audioEnabled, videoEnabled } = JSON.parse(signal.payload);
               setPeers((prev) =>
                 prev.map((p) =>
-                  p.peerId === signal.from
-                    ? { ...p, audioEnabled, videoEnabled }
-                    : p,
+                  p.peerId === signal.from ? { ...p, audioEnabled, videoEnabled } : p,
                 ),
               );
             }
@@ -330,42 +310,23 @@ export function useWebRTC(roomId: string, isHost: boolean) {
               }
             }
 
-            // Host has remotely muted this participant
             if (signal.type === "kick" && signal.to === sessionId) {
               window.location.href = "/dashboard";
             }
 
             if (signal.type === "toggle-audio" && signal.to === sessionId) {
               const { audioEnabled } = JSON.parse(signal.payload);
-              stream
-                .getAudioTracks()
-                .forEach((t) => (t.enabled = audioEnabled));
+              stream.getAudioTracks().forEach((t) => (t.enabled = audioEnabled));
               setAudioEnabled(audioEnabled);
             }
           });
 
           // Announce arrival to all existing participants in the room
-          client.publish({
-            destination: "/app/signal",
-            body: JSON.stringify({
-              type: "join",
-              from: sessionId,
-              roomId,
-              payload: "",
-            }),
-          });
+          send({ type: "join", from: sessionId, roomId, payload: "" });
 
           // Host announces presence so guests know the meeting has started
           if (isHost) {
-            client.publish({
-              destination: "/app/signal",
-              body: JSON.stringify({
-                type: "host-online",
-                from: sessionId,
-                roomId,
-                payload: "",
-              }),
-            });
+            send({ type: "host-online", from: sessionId, roomId, payload: "" });
           }
         },
       });
@@ -395,15 +356,7 @@ export function useWebRTC(roomId: string, isHost: boolean) {
     const next = !audioEnabled;
     localStream.getAudioTracks().forEach((t) => (t.enabled = next));
     setAudioEnabled(next);
-    stompClient.current?.publish({
-      destination: "/app/signal",
-      body: JSON.stringify({
-        type: "media-state",
-        from: sessionId,
-        roomId,
-        payload: JSON.stringify({ audioEnabled: next, videoEnabled }),
-      }),
-    });
+    publishSignal({ type: "media-state", from: sessionId, roomId, payload: JSON.stringify({ audioEnabled: next, videoEnabled }) });
   }
 
   function toggleVideo() {
@@ -411,27 +364,11 @@ export function useWebRTC(roomId: string, isHost: boolean) {
     const next = !videoEnabled;
     localStream.getVideoTracks().forEach((t) => (t.enabled = next));
     setVideoEnabled(next);
-    stompClient.current?.publish({
-      destination: "/app/signal",
-      body: JSON.stringify({
-        type: "media-state",
-        from: sessionId,
-        roomId,
-        payload: JSON.stringify({ audioEnabled, videoEnabled: next }),
-      }),
-    });
+    publishSignal({ type: "media-state", from: sessionId, roomId, payload: JSON.stringify({ audioEnabled, videoEnabled: next }) });
   }
 
   function leaveRoom() {
-    stompClient.current?.publish({
-      destination: "/app/signal",
-      body: JSON.stringify({
-        type: "leave",
-        from: sessionId,
-        roomId,
-        payload: "",
-      }),
-    });
+    publishSignal({ type: "leave", from: sessionId, roomId, payload: "" });
     localStream?.getTracks().forEach((t) => t.stop());
     Object.values(peerConnections.current).forEach((pc) => pc.close());
     stompClient.current?.deactivate();
@@ -439,32 +376,14 @@ export function useWebRTC(roomId: string, isHost: boolean) {
   }
 
   function mutePeer(peerId: string, audioEnabled: boolean) {
-    stompClient.current?.publish({
-      destination: "/app/signal",
-      body: JSON.stringify({
-        type: "toggle-audio",
-        from: sessionId,
-        to: peerId,
-        roomId,
-        payload: JSON.stringify({ audioEnabled }),
-      }),
-    });
+    publishSignal({ type: "toggle-audio", from: sessionId, to: peerId, roomId, payload: JSON.stringify({ audioEnabled }) });
     setPeers((prev) =>
       prev.map((p) => (p.peerId === peerId ? { ...p, audioEnabled } : p)),
     );
   }
 
   function kickPeer(peerId: string) {
-    stompClient.current?.publish({
-      destination: "/app/signal",
-      body: JSON.stringify({
-        type: "kick",
-        from: sessionId,
-        to: peerId,
-        roomId,
-        payload: "",
-      }),
-    });
+    publishSignal({ type: "kick", from: sessionId, to: peerId, roomId, payload: "" });
     setPeers((prev) => prev.filter((p) => p.peerId !== peerId));
     const pc = peerConnections.current[peerId];
     if (pc) {

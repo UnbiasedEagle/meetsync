@@ -9,31 +9,27 @@ export type CreateRoomState =
   | { error: string }
   | null;
 
+export type RoomActionResult = { success: true } | { error: string };
 export type InviteActionResult = { success: true } | { error: string };
+
+async function getAuthToken(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get("token")?.value ?? null;
+}
 
 export async function createRoomAction(
   _prevState: CreateRoomState,
   formData: FormData,
 ): Promise<CreateRoomState> {
   const name = (formData.get("name") as string)?.trim();
+  if (!name) return { error: "Room name is required" };
 
-  if (!name) {
-    return { error: "Room name is required" };
-  }
-
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
-
-  if (!token) {
-    return { error: "Unauthorized" };
-  }
+  const token = await getAuthToken();
+  if (!token) return { error: "Unauthorized" };
 
   const res = await fetch(`${BACKEND_URL}/api/rooms`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ name }),
   });
 
@@ -50,21 +46,16 @@ export async function createRoomAction(
 export async function updateRoomAction(
   inviteToken: string,
   name: string,
-): Promise<{ success: true } | { error: string }> {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
-    if (!token) return { error: "Unauthorized" };
+): Promise<RoomActionResult> {
+  const token = await getAuthToken();
+  if (!token) return { error: "Unauthorized" };
 
+  try {
     const res = await fetch(`${BACKEND_URL}/api/rooms/${inviteToken}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ name }),
     });
-
     if (!res.ok) return { error: "Failed to update room" };
     revalidatePath("/dashboard");
     return { success: true };
@@ -75,17 +66,15 @@ export async function updateRoomAction(
 
 export async function deleteRoomAction(
   inviteToken: string,
-): Promise<{ success: true } | { error: string }> {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
-    if (!token) return { error: "Unauthorized" };
+): Promise<RoomActionResult> {
+  const token = await getAuthToken();
+  if (!token) return { error: "Unauthorized" };
 
+  try {
     const res = await fetch(`${BACKEND_URL}/api/rooms/${inviteToken}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
-
     if (!res.ok) return { error: "Failed to delete room" };
     revalidatePath("/dashboard");
     return { success: true };
@@ -98,23 +87,16 @@ export async function inviteToRoomAction(
   inviteToken: string,
   email: string,
 ): Promise<InviteActionResult> {
+  const token = await getAuthToken();
+  if (!token) return { error: "Unauthorized" };
+
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
-
-    if (!token) return { error: "Unauthorized" };
-
     const res = await fetch(`${BACKEND_URL}/api/rooms/${inviteToken}/invite`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ email }),
     });
-
     if (!res.ok) return { error: "Failed to send invite" };
-
     return { success: true };
   } catch {
     return { error: "Failed to send invite" };

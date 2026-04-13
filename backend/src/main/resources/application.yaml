@@ -20,8 +20,8 @@ spring:
   mail:
     host: sandbox.smtp.mailtrap.io
     port: 2525
-    username: ${MAIL_USERNAME:66478368645465}
-    password: ${MAIL_PASSWORD:99c47efbf05fa9}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -33,8 +33,8 @@ server:
   port: 8080
 
 app:
-  frontend-url: ${FRONTEND_URL:https://tapestry-dividable-degraded.ngrok-free.dev}
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
 
 jwt:
-  secret: ${JWT_SECRET:44587bf43812bac57e17fbd85f3cd7f366ce222c2573b46889bba29e361600ec}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400000}

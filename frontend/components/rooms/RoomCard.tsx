@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Video, Copy, Check, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -60,15 +61,24 @@ export default function RoomCard({ room }: RoomCardProps) {
       return;
     }
     setSaving(true);
-    await updateRoomAction(room.inviteToken, trimmed);
+    const result = await updateRoomAction(room.inviteToken, trimmed);
     setSaving(false);
+    if ("error" in result) {
+      toast.error(result.error);
+      setEditName(room.name);
+    }
     setEditing(false);
   }
 
   async function handleDelete() {
     setDeleting(true);
-    await deleteRoomAction(room.inviteToken);
+    const result = await deleteRoomAction(room.inviteToken);
     setDeleting(false);
+    if ("error" in result) {
+      toast.error(result.error);
+      setDeleteOpen(false);
+      return;
+    }
     setDeleteOpen(false);
   }
 
