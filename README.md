@@ -6,7 +6,6 @@ A real-time video conferencing application built with Next.js and Spring Boot. A
 
 ## Features
 
-### Required by the assignment
 - Host registration and JWT-based login
 - Room creation with a unique, hard-to-guess invite token
 - Email invites sent by the host (via Spring Boot Mail / Mailtrap)
@@ -17,13 +16,11 @@ A real-time video conferencing application built with Next.js and Spring Boot. A
 - Host can mute or unmute any participant
 - Host can kick participants
 - Leave room at any time — host leaving does not close the room
-
-### Beyond the spec
-- **TURN server integration** — dynamic credentials from [metered.ca](https://www.metered.ca) for cross-network calls (mobile, strict NAT)
-- **Guest lobby** — guests wait on a lobby screen until the host joins; after 30 seconds the message updates to indicate the host may not be available
-- **Host-left banner** — if the host disconnects mid-meeting, guests see a notice but stay in the room
-- **Participant toasts** — join and leave events shown as toasts
-- **Room management** — hosts can rename or delete rooms from the dashboard
+- TURN server integration — dynamic credentials from [metered.ca](https://www.metered.ca) for cross-network calls (mobile, strict NAT)
+- Guest lobby — guests wait on a lobby screen until the host joins; after 30 seconds the message updates to indicate the host may not be available
+- Host-left banner — if the host disconnects mid-meeting, guests see a notice but stay in the room
+- Participant toasts — join and leave events shown as toasts
+- Room management — hosts can rename or delete rooms from the dashboard
 
 ---
 
@@ -34,6 +31,7 @@ A real-time video conferencing application built with Next.js and Spring Boot. A
 MeetSync uses a **mesh (peer-to-peer) topology**. Every participant connects directly to every other participant. There is no media server — audio and video bytes never touch the Spring Boot backend.
 
 This was chosen over an SFU (Selective Forwarding Unit) because:
+
 - It requires no media infrastructure
 - It has lower latency (one fewer hop)
 - It is the right fit for small group calls (the use case here)
@@ -84,6 +82,7 @@ ICE candidates can arrive via STOMP before `setRemoteDescription()` has complete
 
 **`hostEverPresent` latch**
 Two separate states track host presence:
+
 - `hostPresent` — reflects whether the host is currently connected. Resets to `false` when the host leaves.
 - `hostEverPresent` — latches to `true` the first time the host joins and never resets.
 
@@ -96,15 +95,15 @@ This distinction is what separates the two UX states cleanly: a guest who has ne
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 15 (App Router), TypeScript, Tailwind CSS v4, shadcn/ui |
-| Backend | Spring Boot 3, Kotlin |
-| Database | PostgreSQL 16 + Spring Data JPA |
-| Auth | Spring Security + JWT (jjwt) |
-| Real-time | Spring WebSocket / STOMP (signaling) + WebRTC (media) |
-| Email | Spring Boot Mail (Mailtrap sandbox) |
-| Infrastructure | Docker Compose (PostgreSQL) |
+| Layer          | Technology                                                      |
+| -------------- | --------------------------------------------------------------- |
+| Frontend       | Next.js 15 (App Router), TypeScript, Tailwind CSS v4, shadcn/ui |
+| Backend        | Spring Boot 3, Kotlin                                           |
+| Database       | PostgreSQL 16 + Spring Data JPA                                 |
+| Auth           | Spring Security + JWT (jjwt)                                    |
+| Real-time      | Spring WebSocket / STOMP (signaling) + WebRTC (media)           |
+| Email          | Spring Boot Mail (Mailtrap sandbox)                             |
+| Infrastructure | Docker Compose (PostgreSQL)                                     |
 
 ---
 
@@ -114,7 +113,7 @@ This distinction is what separates the two UX states cleanly: a guest who has ne
 - **Java** 21+
 - **Docker** (for running PostgreSQL via Docker Compose)
 - A **Mailtrap** account for email — [sign up free](https://mailtrap.io)
-- A **metered.ca** account for TURN — [sign up free](https://www.metered.ca) *(optional — only needed for cross-network calls)*
+- A **metered.ca** account for TURN — [sign up free](https://www.metered.ca) _(optional — only needed for cross-network calls)_
 
 ---
 
@@ -195,24 +194,24 @@ The app is available at `http://localhost:3000`.
 
 ### Backend — `backend/.env`
 
-| Variable | Description | Required |
-|---|---|---|
-| `DB_USERNAME` | PostgreSQL username | Yes |
-| `DB_PASSWORD` | PostgreSQL password | Yes |
-| `JWT_SECRET` | Secret key for signing JWTs — generate with `openssl rand -hex 32` | Yes |
-| `JWT_EXPIRATION` | Token expiry in milliseconds (default: `86400000` = 24 hours) | No |
-| `MAIL_USERNAME` | SMTP username from Mailtrap (or any SMTP provider) | Yes |
-| `MAIL_PASSWORD` | SMTP password from Mailtrap (or any SMTP provider) | Yes |
-| `FRONTEND_URL` | Public URL of the frontend — used for CORS and invite email links | Yes |
+| Variable         | Description                                                        | Required |
+| ---------------- | ------------------------------------------------------------------ | -------- |
+| `DB_USERNAME`    | PostgreSQL username                                                | Yes      |
+| `DB_PASSWORD`    | PostgreSQL password                                                | Yes      |
+| `JWT_SECRET`     | Secret key for signing JWTs — generate with `openssl rand -hex 32` | Yes      |
+| `JWT_EXPIRATION` | Token expiry in milliseconds (default: `86400000` = 24 hours)      | No       |
+| `MAIL_USERNAME`  | SMTP username from Mailtrap (or any SMTP provider)                 | Yes      |
+| `MAIL_PASSWORD`  | SMTP password from Mailtrap (or any SMTP provider)                 | Yes      |
+| `FRONTEND_URL`   | Public URL of the frontend — used for CORS and invite email links  | Yes      |
 
 ### Frontend — `frontend/.env.local`
 
-| Variable | Description | Required |
-|---|---|---|
-| `BACKEND_URL` | Backend base URL used in server-side data fetchers and Server Actions | Yes |
-| `NEXT_PUBLIC_BACKEND_URL` | Backend base URL used in the browser for WebSocket connection | Yes |
-| `NEXT_PUBLIC_APP_URL` | Public URL of this frontend — used to build invite links on room cards | Yes |
-| `NEXT_PUBLIC_METERED_API_KEY` | metered.ca API key for TURN credentials — enables cross-network calls | No |
+| Variable                      | Description                                                            | Required |
+| ----------------------------- | ---------------------------------------------------------------------- | -------- |
+| `BACKEND_URL`                 | Backend base URL used in server-side data fetchers and Server Actions  | Yes      |
+| `NEXT_PUBLIC_BACKEND_URL`     | Backend base URL used in the browser for WebSocket connection          | Yes      |
+| `NEXT_PUBLIC_APP_URL`         | Public URL of this frontend — used to build invite links on room cards | Yes      |
+| `NEXT_PUBLIC_METERED_API_KEY` | metered.ca API key for TURN credentials — enables cross-network calls  | No       |
 
 ---
 
@@ -273,16 +272,16 @@ video-conference-app/
 
 ## API Reference
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `POST` | `/api/auth/register` | No | Register a new host account |
-| `POST` | `/api/auth/login` | No | Login and receive a JWT |
-| `POST` | `/api/rooms` | JWT | Create a new room |
-| `GET` | `/api/rooms/me` | JWT | List all rooms owned by the authenticated host |
-| `GET` | `/api/rooms/{inviteToken}` | No | Get room details by invite token (used by guests) |
-| `PUT` | `/api/rooms/{inviteToken}` | JWT | Rename a room (host only) |
-| `DELETE` | `/api/rooms/{inviteToken}` | JWT | Delete a room (host only) |
-| `POST` | `/api/rooms/{inviteToken}/invite` | JWT | Send an email invite (host only) |
+| Method   | Endpoint                          | Auth | Description                                       |
+| -------- | --------------------------------- | ---- | ------------------------------------------------- |
+| `POST`   | `/api/auth/register`              | No   | Register a new host account                       |
+| `POST`   | `/api/auth/login`                 | No   | Login and receive a JWT                           |
+| `POST`   | `/api/rooms`                      | JWT  | Create a new room                                 |
+| `GET`    | `/api/rooms/me`                   | JWT  | List all rooms owned by the authenticated host    |
+| `GET`    | `/api/rooms/{inviteToken}`        | No   | Get room details by invite token (used by guests) |
+| `PUT`    | `/api/rooms/{inviteToken}`        | JWT  | Rename a room (host only)                         |
+| `DELETE` | `/api/rooms/{inviteToken}`        | JWT  | Delete a room (host only)                         |
+| `POST`   | `/api/rooms/{inviteToken}/invite` | JWT  | Send an email invite (host only)                  |
 
 ---
 
@@ -290,28 +289,28 @@ video-conference-app/
 
 All messages are sent to `/app/signal` and broadcast to `/topic/room/{roomId}`. Each client filters messages by the `to` field — messages without a `to` are broadcasts to the whole room.
 
-| Signal type | Direction | Purpose |
-|---|---|---|
-| `join` | Peer → Room | Announce arrival; existing peers respond with an offer |
-| `offer` | Peer → Peer | SDP offer initiating a WebRTC connection |
-| `answer` | Peer → Peer | SDP answer completing the handshake |
-| `ice-candidate` | Peer → Peer | ICE candidate for NAT traversal |
-| `host-online` | Host → Room | Announces host presence; releases guests from the lobby |
-| `leave` | Peer → Room | Announces departure so peers can close the connection |
-| `kick` | Host → Peer | Forces the target peer to leave the room |
-| `toggle-audio` | Host → Peer | Host remotely mutes or unmutes a participant |
-| `media-state` | Peer → Room | Broadcasts current audio/video toggle state for UI indicators |
+| Signal type     | Direction   | Purpose                                                       |
+| --------------- | ----------- | ------------------------------------------------------------- |
+| `join`          | Peer → Room | Announce arrival; existing peers respond with an offer        |
+| `offer`         | Peer → Peer | SDP offer initiating a WebRTC connection                      |
+| `answer`        | Peer → Peer | SDP answer completing the handshake                           |
+| `ice-candidate` | Peer → Peer | ICE candidate for NAT traversal                               |
+| `host-online`   | Host → Room | Announces host presence; releases guests from the lobby       |
+| `leave`         | Peer → Room | Announces departure so peers can close the connection         |
+| `kick`          | Host → Peer | Forces the target peer to leave the room                      |
+| `toggle-audio`  | Host → Peer | Host remotely mutes or unmutes a participant                  |
+| `media-state`   | Peer → Room | Broadcasts current audio/video toggle state for UI indicators |
 
 ---
 
 ## Assumptions & Design Decisions
 
-| Decision | Reasoning |
-|---|---|
-| Mesh topology over SFU | No media infrastructure required; lower latency; appropriate for small group calls |
-| Per-tab UUID for signaling identity | Using `userId` would break if the same user opens two tabs; a per-tab UUID gives each session a distinct identity in the signaling layer |
-| WebSocket endpoint unauthenticated | Guests have no JWT — requiring one would block them from the signaling layer entirely. Room-level auth is enforced at the REST layer |
-| TURN credentials fetched dynamically | TURN credentials from metered.ca are time-limited; fetching on each join ensures they are always valid |
-| Host leaving does not close the room | Per the assignment spec — guests can remain after the host leaves |
-| `active` field on Room entity | Included in the schema for future soft-delete or room lifecycle management; currently all rooms are active |
-| Email sending is real | Spring Boot Mail is wired to a Mailtrap sandbox — emails are sent and visible in the Mailtrap inbox, not silently dropped |
+| Decision                             | Reasoning                                                                                                                                |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Mesh topology over SFU               | No media infrastructure required; lower latency; appropriate for small group calls                                                       |
+| Per-tab UUID for signaling identity  | Using `userId` would break if the same user opens two tabs; a per-tab UUID gives each session a distinct identity in the signaling layer |
+| WebSocket endpoint unauthenticated   | Guests have no JWT — requiring one would block them from the signaling layer entirely. Room-level auth is enforced at the REST layer     |
+| TURN credentials fetched dynamically | TURN credentials from metered.ca are time-limited; fetching on each join ensures they are always valid                                   |
+| Host leaving does not close the room | Guests can remain in the room after the host leaves                                                                                      |
+| `active` field on Room entity        | Included in the schema for future soft-delete or room lifecycle management; currently all rooms are active                               |
+| Email sending is real                | Spring Boot Mail is wired to a Mailtrap sandbox — emails are sent and visible in the Mailtrap inbox, not silently dropped                |
